@@ -13,9 +13,9 @@ export default {
       // 杯子容积
       cupVolume: 0,
       // 今日喝水目标
-      todayTarget: 2.5,
+      todayTarget: 0,
       // 目前已喝
-      currentDrink: 0.5,
+      currentDrink: 0,
       prepareDrink: "",
       prepareTargetDrink: "",
     };
@@ -28,6 +28,16 @@ export default {
     this.screenData.height = height;
     console.log("&&&&&", this.screenData);
     this.drawCup();
+    // 读取本次存储的数据
+    let dataRecord = JSON.parse(localStorage.getItem("drinkWaterRecord"));
+    if (dataRecord instanceof Object) {
+      this.todayTarget = dataRecord.todayTarget;
+      this.currentDrink = dataRecord.currentDrink;
+      this.completeDays = dataRecord.completeDays;
+    }
+    if (+this.currentDrink != 0) {
+      this.drawWater();
+    }
   },
   methods: {
     // 绘制杯子
@@ -36,30 +46,20 @@ export default {
       let width = this.screenData.width;
       let height = this.screenData.height;
       let startX = width * 0.25;
-      let startY = height * 0.5;
-      console.log(startX, startY, width, height);
+      let startY = height * 0.42;
       // 绘制杯子
-      const ctx = this.$refs.canvas.getContext("2d");
-      ctx.lineWidth = 10;
-      ctx.beginPath();
-      ctx.strokeStyle = "rgb(54, 57, 56,0.5)";
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(width * 0.7, startY);
-      ctx.lineTo(width * 0.82, height * 0.1);
-      ctx.lineTo(width * 0.13, height * 0.1);
-      ctx.lineTo(width * 0.252, height * 0.5055);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(61, 61, 61,0.05)";
-      ctx.fill();
-
-      console.log(
-        "杯子尺寸",
-        "底部",
-        width * 0.7 - startX,
-        "高",
-        startY - 0.1 * height,
-        "顶",
-        0.82 * width - 0.13 * width
+      this.draw(
+        startX,
+        startY,
+        0.7 * width,
+        startY,
+        0.82 * width,
+        0.1 * height,
+        0.13 * width,
+        0.1 * height,
+        0.252 * width,
+        0.4255 * height,
+        10
       );
       // 计算杯子面积
       this.cupVolume =
@@ -77,7 +77,7 @@ export default {
       let width = this.screenData.width;
       let height = this.screenData.height;
       let startX = width * 0.25;
-      let startY = height * 0.5;
+      let startY = height * 0.42;
       // 杯子底边
       let bottomLength = 0.7 * width - startX;
       // 获取已喝水的百分比
@@ -94,100 +94,149 @@ export default {
       let endRight = startX + bottomLength + (topLength - bottomLength) / 2;
       let endLeft = startX - (topLength - bottomLength) / 2;
 
-      console.log(
-        "参数对比",
-        "底",
-        bottomLength,
-        "百分比",
-        percenTage,
-        "顶",
-        topLength,
-        "高",
-        drawHeight,
+      // 绘制
+      this.draw(
+        startX,
+        startY,
+        0.7 * width,
+        startY,
         endRight,
-        endLeft
+        startY - drawHeight,
+        endLeft,
+        startY - drawHeight,
+        startX,
+        startY,
+        1,
+        "rgb(16,116,167)"
       );
-
-      // 绘制水
+    },
+    draw(
+      startX,
+      startY,
+      firstX,
+      firstY,
+      secondX,
+      secondY,
+      thirdX,
+      thirdY,
+      fourthX,
+      fourthY,
+      lineWidth = 1,
+      rgb = "rgba(61, 61, 61,0.05)"
+    ) {
       const ctx = this.$refs.canvas.getContext("2d");
-      ctx.lineWidth = 1;
+      ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.strokeStyle = "rgb(54, 57, 56,0.5)";
       ctx.moveTo(startX, startY);
-      ctx.lineTo(width * 0.7, startY);
-      ctx.lineTo(endRight, startY - drawHeight);
-      ctx.lineTo(endLeft, startY - drawHeight);
-      ctx.lineTo(startX, startY);
+      ctx.lineTo(firstX, firstY);
+      ctx.lineTo(secondX, secondY);
+      ctx.lineTo(thirdX, thirdY);
+      ctx.lineTo(fourthX, fourthY);
       ctx.stroke();
-      ctx.fillStyle = "rgb(16, 116, 167)";
+      ctx.fillStyle = rgb;
       ctx.fill();
     },
     // 计算已喝水所占百分比
     getDrinkedPercentage() {
-      console.log("))))))))))", this.currentDrink / this.todayTarget);
-      return this.currentDrink / this.todayTarget;
+      console.log("))))))))))", typeof this.currentDrink);
+      return +this.currentDrink / +this.todayTarget;
     },
     // 修改待喝水
     changePrepareDrink(event) {
       // 数据校验
       if (event.target.value.trim().length != 0) {
-        let difValue =
-          this.currentDrink + (+event.target.value)/1000 - this.todayTarget;
-        if (difValue > 0) {
-          this.prepareDrink = this.todayTarget;
-        } else {
-          this.prepareDrink += (+event.target.value)/1000;
-        }
-        console.log("preada", this.prepareDrink);
+        this.prepareDrink += +event.target.value / 1000;
       }
     },
+    // 修改今日目标
     changetodayTarget() {
-        this.todayTarget = this.prepareTargetDrink;
-        this.prepareTargetDrink = ''
+      if (+this.prepareTargetDrink != 0) {
+        this.todayTarget = +this.prepareTargetDrink;
+        this.prepareTargetDrink = "";
+        this.clearCup(true);
+        this.drawWater();
+        this.saveRecord();
+      }
     },
     // 修改待设目标
     changePrepareTargetDrink(event) {
-      console.log(
-        "GGGGGGGG",
-        event.target.value.trim().length,
-        event.target.value
-      );
       if (event.target.value.trim().length != 0) {
         this.prepareTargetDrink = +event.target.value;
       }
     },
     // 干了这杯
     changeCurrentDrink() {
+      // 用于判断这次喝水没
+      let oldDrink = +this.currentDrink;
       this.currentDrink += +this.prepareDrink;
+      // 处理小数
+      this.currentDrink = this.dealDecimasl(this.currentDrink);
+      if (this.currentDrink == 0) return;
+      console.log("^^^^^^^", this.currentDrink, this.prepareDrink);
       if (this.currentDrink >= this.todayTarget) {
         this.currentDrink = this.todayTarget;
         this.drawWater();
-      } else if (this.currentDrink == 0) {
-        return;
       } else {
-        this.drawWater();
+        if (oldDrink != this.currentDrink) {
+          console.log("画水");
+          this.drawWater();
+        }
       }
-      this.prepareDrink = ''
-      if(this.isCompleteTask()){
-        this.completeDays++
+      this.prepareDrink = "";
+      if (this.isCompleteTask()) {
+        this.completeDays++;
       }
+      this.saveRecord();
     },
     // 今日目标达成
-    completeToday() {},
+    completeToday() {
+      if(+this.currentDrink == +this.todayTarget){
+        this.currentDrink=0
+      }
+      
+    },
     // 清空水杯
-    clearCup() {
-      // 清空数据
-      this.currentDrink = 0;
-      this.prepareDrink = "";
+    clearCup(clearnCurrent = false) {
       const ctx = this.$refs.canvas.getContext("2d");
       // 清空画布
-      ctx.clearRect(0, 0, 390, 700);
+      ctx.clearRect(0, 0, 390, 650);
       // 重新绘制水杯
       this.drawCup();
+      // 清空数据
+      if (!clearnCurrent) {
+        this.currentDrink = 0;
+      }
+      this.prepareDrink = "";
+      this.saveRecord();
     },
-    isCompleteTask(){
-      return this.currentDrink == this.todayTarget
-    }
+    // 判断是否完成任务
+    isCompleteTask() {
+      return this.currentDrink == this.todayTarget;
+    },
+    // 处理小数点保留
+    dealDecimasl(num) {
+      let str = num.toString();
+      let result;
+      if (str.indexOf(".") != -1) {
+        result = str.substring(0, str.indexOf(".") + 4);
+      } else {
+        result = str;
+      }
+      return +result;
+    },
+    // 数据本地存储
+    saveRecord() {
+      let todayTarget = this.todayTarget;
+      let currentDrink = this.currentDrink;
+      let completeDays = this.completeDays;
+      let dataRecord = {
+        todayTarget,
+        currentDrink,
+        completeDays,
+      };
+      localStorage.setItem("drinkWaterRecord", JSON.stringify(dataRecord));
+    },
   },
 };
 </script>
@@ -199,8 +248,8 @@ export default {
       <!-- 今日目标 -->
       <div class="todayTarget">今日喝水目标：{{ todayTarget }} L</div>
       <div class="todayTarget">今日已喝：{{ currentDrink }} L</div>
-      <div class="todayTarget">已完成天数：{{ completeDays }} 天</div>
-      <canvas width="380" height="700" ref="canvas"></canvas>
+      <!-- <div class="todayTarget">已完成天数：{{ completeDays }} 天</div> -->
+      <canvas width="380" height="650" ref="canvas"></canvas>
       <div class="button">
         <div class="btn1">
           <button @click="changeCurrentDrink">干了这杯!</button>
@@ -222,7 +271,7 @@ export default {
         </div>
         <div class="btn2">
           <button @click="clearCup">清空水杯</button>
-          <button @click="completeToday">今日目标完成</button>
+          <button @click="completeToday">完成目标</button>
         </div>
       </div>
     </div>
@@ -242,25 +291,32 @@ html {
 div {
   box-sizing: border-box;
 }
+#app {
+  height: 100vh;
+}
 .title {
   font-size: 4rem;
   text-align: center;
-  background: linear-gradient(103.3deg, rgb(252, 225, 208) 30%, rgb(255, 173, 214) 55.7%, rgb(162, 186, 245) 81.8%);
-
+  background: linear-gradient(
+    103.3deg,
+    rgb(252, 225, 208) 30%,
+    rgb(255, 173, 214) 55.7%,
+    rgb(162, 186, 245) 81.8%
+  );
 }
 .cup {
   position: relative;
   width: 100%;
-  background-color: beige;
 }
 .todayTarget {
   font-size: 2.5rem;
   padding-top: 1rem;
+  padding-left: 1rem;
 }
 .button {
   position: absolute;
   width: 100%;
-  bottom: 8rem;
+  bottom: 7.5rem;
 }
 .btn1 {
   display: flex;
@@ -268,7 +324,7 @@ div {
   padding-left: 2rem;
   margin-bottom: 1rem;
 }
-input{
+input {
   border-color: rgb(61, 61, 237);
   padding-left: 1rem;
   border-radius: 1rem;
@@ -278,8 +334,12 @@ button {
   height: 3.5rem;
   border-radius: 1rem;
   border: none;
-  background-image: linear-gradient(110.6deg, rgb(179, 157, 219) 7%, rgb(150, 159, 222) 47.7%, rgb(24, 255, 255) 100.6%);
-
+  background-image: linear-gradient(
+    110.6deg,
+    rgb(179, 157, 219) 7%,
+    rgb(150, 159, 222) 47.7%,
+    rgb(24, 255, 255) 100.6%
+  );
 }
 .btn1 button {
   margin-right: 2rem;
@@ -293,7 +353,7 @@ button {
   margin-top: 1rem;
   padding-left: 2rem;
 }
-.btn2 button{
+.btn2 button {
   margin-bottom: 1rem;
 }
 </style>
